@@ -42,3 +42,5 @@ Developing a method for inferring transmission chains in a hospital setting usin
 ## Environment
 
 conda env create -n project_nosocomial -f environment.yml
+
+[![DOI](https://sandbox.zenodo.org/badge/1079890670.svg)](https://handle.test.datacite.org/10.5072/zenodo.389396)
