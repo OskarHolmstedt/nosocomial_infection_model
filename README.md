@@ -38,3 +38,7 @@ Developing a method for inferring transmission chains in a hospital setting usin
 ### File formats
 
 ## Data manegement plan
+
+## Environment
+
+conda env create -n project_nosocomial -f environment.yml
