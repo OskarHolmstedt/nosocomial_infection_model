@@ -1,5 +1,36 @@
+name: nosocomial-infection-model
+
 channels:
   - conda-forge
   - bioconda
+
 dependencies:
+  - r-base>=4.3,<5
+
+  # Core model and visualization workflow
+  - r-matrix
+  - r-igraph
+  - r-visnetwork
+  - r-expm
+  - r-here
+  - r-htmlwidgets
+
+  # Analysis and reports
   - r-tidyverse
+  - r-patchwork
+  - r-ggrepel
+  - r-knitr
+  - r-rmarkdown
+  - quarto
+
+  # Validation
+  - r-testthat
+
+  # Optional high-resolution figure export
+  - r-webshot2
+  - r-chromote
+  - r-magick
+  - r-jsonlite
+
+  # epicontacts is installed from its official R-universe repository by
+  # scripts/install_dependencies.R because no Conda package is available.

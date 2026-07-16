@@ -64,10 +64,12 @@ Its selected figures and supporting tables are documented under
 | [`scripts/demo.R`](scripts/demo.R) | Full poster-figure and diagnostic workflow |
 | [`scripts/run_accuracy_sweeps.R`](scripts/run_accuracy_sweeps.R) | Long-running simulation experiments |
 | [`reports/`](reports) | Authored Quarto reports |
-| [`tests/test-model.R`](tests/test-model.R) | Current model checks |
+| [`scripts/validate.R`](scripts/validate.R) | Complete validation entry point |
+| [`tests/`](tests) | Unit and deterministic smoke checks |
 | [`results/`](results) | Selected poster figures, tables, and provenance |
 | [`docs/poster/`](docs/poster) | Poster PDF and web preview |
-| [`environment.yaml`](environment.yaml) | Preliminary Conda environment specification |
+| [`environment.yaml`](environment.yaml) | Complete Conda environment specification |
+| [`docs/dependencies.md`](docs/dependencies.md) | Required and optional dependency guidance |
 | [`data/README.md`](data/README.md) | Data handling and provenance guidance |
 | [`docs/artifact-policy.md`](docs/artifact-policy.md) | Rules for generated and versioned outputs |
 
@@ -77,10 +79,16 @@ exploratory artifacts remain outside version control. See the
 
 ## Getting started
 
-The current workflow requires R with `here`, `Matrix`, `igraph`, `epicontacts`,
-`visNetwork`, `expm`, and `ggplot2`. Plot diagnostics and figure export also use
-`patchwork`, `htmlwidgets`, and `webshot2`. The complete environment is being
-consolidated as part of the reproducibility work.
+Create and activate the complete Conda environment:
+
+```sh
+mamba env create --file environment.yaml
+conda activate nosocomial-infection-model
+Rscript scripts/install_dependencies.R
+```
+
+See the [dependency guide](docs/dependencies.md) for Conda alternatives and the
+distinction between core, reporting, validation, and optional export packages.
 
 Clone the repository, install the required packages, and run the canonical
 example from the repository root:
@@ -109,9 +117,20 @@ reconstructed transmission timeline. Keep its adjacent
 regenerable and ignored by Git.
 
 The full poster workflow remains in `scripts/demo.R`; long-running parameter
-sweeps are isolated in `scripts/run_accuracy_sweeps.R`. The committed Conda
-environment is not yet a complete dependency lockfile; that work is tracked in
-[issue #3](https://github.com/OskarHolmstedt/nosocomial_infection_model/issues/3).
+sweeps are isolated in `scripts/run_accuracy_sweeps.R`.
+
+## Validation
+
+Run all unit tests, the deterministic quick-start smoke check, and lightweight
+Quarto report renders from the repository root:
+
+```sh
+Rscript scripts/validate.R
+```
+
+Set `NOSOCOMIAL_SKIP_REPORT_CHECKS=true` to omit Quarto checks when working on a
+system without Quarto. Generated validation files are temporary and do not alter
+the working tree.
 
 ## Project status
 

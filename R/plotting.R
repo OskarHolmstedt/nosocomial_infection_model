@@ -493,6 +493,16 @@ plot_timeline <- function(outbreak_data, observed = TRUE, flip = FALSE, show_tre
   ll    <- epi$linelist
   nodes <- out$x$nodes
 
+  # epicontacts 1.1.x stores the node fill as `color`; development releases
+  # expose the same value as the flattened visNetwork field
+  # `color.background`. Normalize both shapes for the layout code below.
+  if (!"color.background" %in% names(nodes)) {
+    if (!"color" %in% names(nodes)) {
+      stop("epicontacts visualization did not provide node colors.", call. = FALSE)
+    }
+    nodes$color.background <- nodes$color
+  }
+
   # vis_epicontacts drops linelist cases that have no edges (e.g. community-imported cases).
   # Add them back, inheriting colors from the node_color grouping of existing nodes.
   missing_ids <- setdiff(ll$id, nodes$id)
