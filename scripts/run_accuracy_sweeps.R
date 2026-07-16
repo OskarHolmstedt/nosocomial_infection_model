@@ -64,9 +64,8 @@ results <- do.call(rbind, mclapply(test_rates, function(rate) {
 }, mc.cores = n_cores))
 
 # ── Save data ─────────────────────────────────────────────────────────────────
-dir.create("data", showWarnings = FALSE)
 saveRDS(results, file.path(cache_dir, "sweep_testing_rate.rds"))
-write.csv(results, file.path(table_dir, "sweep_testing_rate.csv"), row.names = FALSE)
+write.csv(results, file.path(table_dir, "testing-rate-r0-1-03.csv"), row.names = FALSE)
 
 # ── Plot ──────────────────────────────────────────────────────────────────────
 # SE must be computed before mode_acc is overwritten in summarise
@@ -105,7 +104,6 @@ ggplot(means, aes(x = test_rate, y = mode_acc)) +
       N_rep, N_samples, 8L, 12L, T_demo)
   )
 
-dir.create("figures", showWarnings = FALSE)
 ggsave(file.path(figure_dir, "sweep_testing_rate.pdf"), width = 8, height = 5)
 ggsave(file.path(figure_dir, "sweep_testing_rate.png"), width = 8, height = 5, dpi = 300)
 

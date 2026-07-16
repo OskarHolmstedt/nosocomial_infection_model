@@ -16,9 +16,8 @@ Selected outputs should have descriptive names and live under `results/figures/`
 or `results/tables/`. Whenever practical, the generating script, parameter set,
 and source data should be versioned with them.
 
-The current poster is small enough for ordinary Git. Under issue #7 it should be
-moved from the repository root to `docs/poster/`, with a stable name and an
-optional compressed PNG preview for web pages.
+The current poster is small enough for ordinary Git and is stored under
+`docs/poster/` with a stable filename and a compressed PNG preview for web pages.
 
 ## Do not version by default
 

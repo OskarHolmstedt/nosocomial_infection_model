@@ -7,3 +7,7 @@ this README.
 Intermediate files should not be treated as the authoritative copy of a result.
 Promote stable outputs needed for reports or publication to `results/` and
 document how they were generated.
+
+The current local layout uses `sweeps/` for RDS caches and `legacy-data/`,
+`legacy-figures/`, and `legacy-reports/` for preserved pre-reorganization
+artifacts. These directories remain intentionally unversioned.

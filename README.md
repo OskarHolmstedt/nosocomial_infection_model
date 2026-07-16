@@ -33,12 +33,26 @@ how much it contributes to reconstruction.
 
 ## Example reconstruction
 
-![Example posterior-mode reconstruction of a simulated hospital outbreak](code/figures/demo_mode.png)
+![Example posterior-mode reconstruction of a simulated hospital outbreak](results/figures/example-reconstruction.png)
 
 Patient stays are arranged along the time axis and coloured by ward. Nodes mark
 detected cases, while arrows show reconstructed transmission links. Edge colour
 indicates the spatial scale of transmission. This example was generated from a
 seeded synthetic outbreak.
+
+## Poster
+
+<p align="center">
+  <a href="docs/poster/nosocomial-outbreak-reconstruction-poster-2026-07-08.pdf">
+    <img src="docs/poster/preview.png" alt="Poster preview" width="500">
+  </a>
+</p>
+
+The project poster, **Reconstruction of Nosocomial Infectious Disease Outbreaks
+Using Bayesian Inference**, is available as a
+[print-ready PDF](docs/poster/nosocomial-outbreak-reconstruction-poster-2026-07-08.pdf).
+Its selected figures and supporting tables are documented under
+[`results/`](results/README.md).
 
 ## Repository guide
 
@@ -50,13 +64,15 @@ seeded synthetic outbreak.
 | [`scripts/run_accuracy_sweeps.R`](scripts/run_accuracy_sweeps.R) | Long-running simulation experiments |
 | [`reports/`](reports) | Authored Quarto reports |
 | [`tests/test-model.R`](tests/test-model.R) | Current model checks |
+| [`results/`](results) | Selected poster figures, tables, and provenance |
+| [`docs/poster/`](docs/poster) | Poster PDF and web preview |
 | [`environment.yaml`](environment.yaml) | Preliminary Conda environment specification |
 | [`data/README.md`](data/README.md) | Data handling and provenance guidance |
 | [`docs/artifact-policy.md`](docs/artifact-policy.md) | Rules for generated and versioned outputs |
 
-Generated figures and experiment outputs are currently stored alongside the
-research code. The repository layout and artifact policy are being reorganized in
-[issue #4](https://github.com/OskarHolmstedt/nosocomial_infection_model/issues/4).
+Selected figures and tables are stored under `results/`; regenerable caches and
+exploratory artifacts remain outside version control. See the
+[artifact policy](docs/artifact-policy.md) for the selection rules.
 
 ## Getting started
 

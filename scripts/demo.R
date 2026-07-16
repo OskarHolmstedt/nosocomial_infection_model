@@ -43,8 +43,8 @@ if (Sys.getenv("NOSOCOMIAL_SKIP_EXPORT", "false") != "true") {
     uniform_edge_color = "#555555",
     edge_width_by = "fixed"
   )
-  save_timeline(p_input, file.path(figure_dir, "input_data.png"))
-  save_timeline(p_input, file.path(figure_dir, "input_data.pdf"))
+  save_timeline(p_input, file.path(figure_dir, "simulated-outbreak-input.png"))
+  save_timeline(p_input, file.path(figure_dir, "simulated-outbreak-input.pdf"))
 
   p_mode <- plot_timeline_mode(
     OutbreakDemo,
@@ -52,6 +52,6 @@ if (Sys.getenv("NOSOCOMIAL_SKIP_EXPORT", "false") != "true") {
     color_edges = TRUE,
     color_nodes = FALSE
   )
-  save_timeline(p_mode, file.path(figure_dir, "demo_mode.png"))
-  save_timeline(p_mode, file.path(figure_dir, "demo_mode.pdf"))
+  save_timeline(p_mode, file.path(figure_dir, "example-reconstruction.png"))
+  save_timeline(p_mode, file.path(figure_dir, "example-reconstruction.pdf"))
 }
