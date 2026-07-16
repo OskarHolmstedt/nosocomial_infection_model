@@ -1,6 +1,6 @@
 library(testthat)
-source("outbreak_simulation.R")
-source("mcmc.R")
+source(here::here("R", "simulation.R"))
+source(here::here("R", "inference.R"))
 
 # Helper: build a minimal Cases data frame for uplift_ancestry tests.
 # Row names are set to `ids` to match what sim_postprocess produces.

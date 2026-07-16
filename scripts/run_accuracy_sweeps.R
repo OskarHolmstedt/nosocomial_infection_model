@@ -1,11 +1,12 @@
 library(parallel)
 library(tidyverse)
-source("two_wards_data.R")
-source("prep_functions.R")
-source("outbreak_simulation.R")
-source("mcmc.R")
-source("analysis_functions.R")
-source("parameters.R")
+source(here::here("scripts", "_load_project.R"))
+
+cache_dir  <- here::here("intermediate", "sweeps")
+table_dir  <- here::here("results", "tables")
+figure_dir <- here::here("results", "figures")
+invisible(lapply(c(cache_dir, table_dir, figure_dir), dir.create,
+                 recursive = TRUE, showWarnings = FALSE))
 
 T_demo    <- 45
 theta_demo <- local({
@@ -64,8 +65,8 @@ results <- do.call(rbind, mclapply(test_rates, function(rate) {
 
 # ── Save data ─────────────────────────────────────────────────────────────────
 dir.create("data", showWarnings = FALSE)
-saveRDS(results, "data/sweep_testing_rate.rds")
-write.csv(results, "data/sweep_testing_rate.csv", row.names = FALSE)
+saveRDS(results, file.path(cache_dir, "sweep_testing_rate.rds"))
+write.csv(results, file.path(table_dir, "sweep_testing_rate.csv"), row.names = FALSE)
 
 # ── Plot ──────────────────────────────────────────────────────────────────────
 # SE must be computed before mode_acc is overwritten in summarise
@@ -105,8 +106,8 @@ ggplot(means, aes(x = test_rate, y = mode_acc)) +
   )
 
 dir.create("figures", showWarnings = FALSE)
-ggsave("figures/sweep_testing_rate.pdf", width = 8, height = 5)
-ggsave("figures/sweep_testing_rate.png", width = 8, height = 5, dpi = 300)
+ggsave(file.path(figure_dir, "sweep_testing_rate.pdf"), width = 8, height = 5)
+ggsave(file.path(figure_dir, "sweep_testing_rate.png"), width = 8, height = 5, dpi = 300)
 
 # ── Mutation rate sweep (testing rate fixed at 0.10) ──────────────────────────
 # Close any open ChromoteSession before mclapply to avoid fork issues on macOS.
@@ -135,8 +136,8 @@ results_mu <- do.call(rbind, mclapply(mu_rates, function(mu) {
   if (length(valid)) do.call(rbind, valid)
 }, mc.cores = n_cores_mu))
 
-saveRDS(results_mu, "data/sweep_mutation_rate.rds")
-write.csv(results_mu, "data/sweep_mutation_rate.csv", row.names = FALSE)
+saveRDS(results_mu, file.path(cache_dir, "sweep_mutation_rate.rds"))
+write.csv(results_mu, file.path(table_dir, "sweep_mutation_rate.csv"), row.names = FALSE)
 
 means_mu <- results_mu |>
   group_by(mu) |>
@@ -162,8 +163,8 @@ ggplot(means_mu, aes(x = mu, y = mode_acc)) +
          "%d reps x %d MCMC samples, window 8-12 obs, testing rate = %.2f, T=%d",
          N_rep_mu, N_samp_mu, fix_rate, T_demo))
 
-ggsave("figures/sweep_mutation_rate.pdf", width = 8, height = 5)
-ggsave("figures/sweep_mutation_rate.png", width = 8, height = 5, dpi = 300)
+ggsave(file.path(figure_dir, "sweep_mutation_rate.pdf"), width = 8, height = 5)
+ggsave(file.path(figure_dir, "sweep_mutation_rate.png"), width = 8, height = 5, dpi = 300)
 
 # ── R0 sweep (scale all three spatial betas proportionally) ──────────────────
 # Varying R0 by keeping the spatial hierarchy (beta ratio) fixed and scaling
@@ -197,8 +198,8 @@ results_r0 <- do.call(rbind, mclapply(r0_vals, function(r0_target) {
   if (length(valid)) do.call(rbind, valid)
 }, mc.cores = n_cores_r0))
 
-saveRDS(results_r0, "data/sweep_r0.rds")
-write.csv(results_r0, "data/sweep_r0.csv", row.names = FALSE)
+saveRDS(results_r0, file.path(cache_dir, "sweep_r0.rds"))
+write.csv(results_r0, file.path(table_dir, "sweep_r0.csv"), row.names = FALSE)
 
 means_r0 <- results_r0 |>
   group_by(r0) |>
@@ -235,8 +236,8 @@ ggplot() +
     axis.ticks       = element_line(color = "#cccccc")
   )
 
-ggsave("figures/sweep_r0.pdf", width = 8, height = 5)
-ggsave("figures/sweep_r0.png", width = 8, height = 5, dpi = 300)
+ggsave(file.path(figure_dir, "sweep_r0.pdf"), width = 8, height = 5)
+ggsave(file.path(figure_dir, "sweep_r0.png"), width = 8, height = 5, dpi = 300)
 
 # ── Mutation rate sweep at higher testing rate (0.40) for comparison ──────────
 fix_rate_high <- 0.40
@@ -258,8 +259,8 @@ results_mu_high <- do.call(rbind, mclapply(mu_rates, function(mu) {
   if (length(valid)) do.call(rbind, valid)
 }, mc.cores = n_cores_mu))
 
-saveRDS(results_mu_high, "data/sweep_mutation_rate_high_testing.rds")
-write.csv(results_mu_high, "data/sweep_mutation_rate_high_testing.csv", row.names = FALSE)
+saveRDS(results_mu_high, file.path(cache_dir, "sweep_mutation_rate_high_testing.rds"))
+write.csv(results_mu_high, file.path(table_dir, "sweep_mutation_rate_high_testing.csv"), row.names = FALSE)
 
 means_mu_high <- results_mu_high |>
   group_by(mu) |>
@@ -298,5 +299,5 @@ ggplot(means_both, aes(x = mu, y = mode_acc, color = test_rate)) +
          "%d reps x %d MCMC samples, window 8-12 obs, T=%d",
          N_rep_mu, N_samp_mu, T_demo))
 
-ggsave("figures/sweep_mutation_rate_comparison.pdf", width = 8, height = 5)
-ggsave("figures/sweep_mutation_rate_comparison.png", width = 8, height = 5, dpi = 300)
+ggsave(file.path(figure_dir, "sweep_mutation_rate_comparison.pdf"), width = 8, height = 5)
+ggsave(file.path(figure_dir, "sweep_mutation_rate_comparison.png"), width = 8, height = 5, dpi = 300)

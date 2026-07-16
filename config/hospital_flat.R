@@ -1,4 +1,6 @@
-source("prep_functions.R")
+if (!exists("hospital", mode = "function")) {
+  source(here::here("R", "hospital.R"))
+}
 
 # Flat hospital: same number of beds as the global hospital, all in one room.
 # Beta is calibrated so the total per-step force of infection matches — i.e.

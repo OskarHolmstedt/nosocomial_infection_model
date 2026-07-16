@@ -1,15 +1,7 @@
-library(Matrix)
-library(igraph)
-library(epicontacts)
-library(visNetwork)
-library(expm)
-source("plot_functions.R")
-source("prep_functions.R")
+source(here::here("scripts", "_load_project.R"))
+
 list2env(hospital(Wards = 3, RoomsPerWard = 4, BedsPerRoom = 3), envir = .GlobalEnv)
-source("parameters.R")
-source("outbreak_simulation.R")
-source("mcmc.R")
-source("analysis_functions.R")
+source(here::here("config", "parameters.R"))
 #set.seed(51)
 T = 50
 OutbreakData = simulate_outbreak(T, theta)
@@ -62,9 +54,9 @@ res_endemic_low <- outbreak_prevalence(OD_endemic_low)
 plot_prevalence(res_endemic)
 plot_prevalence(res_endemic_low)
 
-library(htmlwidgets)
-library(webshot2)
-
 p <- plot_timeline_mode(OutbreakData, Y)
-saveWidget(p, tmp <- tempfile(fileext = ".html"), selfcontained = TRUE)
-webshot(tmp, "p9.png", vwidth = 1400, vheight = 900)
+htmlwidgets::saveWidget(p, tmp <- tempfile(fileext = ".html"), selfcontained = TRUE)
+figure_dir <- here::here("results", "figures")
+dir.create(figure_dir, recursive = TRUE, showWarnings = FALSE)
+webshot2::webshot(tmp, file.path(figure_dir, "exploratory_mode.png"),
+                  vwidth = 1400, vheight = 900)

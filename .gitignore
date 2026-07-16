@@ -14,6 +14,8 @@ Thumbs.db
 .quarto/
 *_cache/
 *_files/
+*.quarto_ipynb
+/reports/*.html
 
 # Regenerable intermediate, temporary, and scratch work
 intermediate/*
@@ -31,6 +33,7 @@ logs/*
 
 # Generic graphics created by interactive or exploratory runs
 **/Rplot*.png
+**/Rplots.pdf
 /code/p[0-9]*.png
 /code/figures/debug_*.png
 /code/figures/debug_*.pdf

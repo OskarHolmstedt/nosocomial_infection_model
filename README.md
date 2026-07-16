@@ -44,13 +44,12 @@ seeded synthetic outbreak.
 
 | Path | Contents |
 | --- | --- |
-| [`code/outbreak_simulation.R`](code/outbreak_simulation.R) | Stochastic outbreak simulation |
-| [`code/mcmc.R`](code/mcmc.R) | Bayesian transmission reconstruction and scoring |
-| [`code/prep_functions.R`](code/prep_functions.R) | Hospital layout and contact structure |
-| [`code/parameters.R`](code/parameters.R) | Model parameters |
-| [`code/main.R`](code/main.R) | Current simulation entry point |
-| [`code/test.R`](code/test.R) | Current model checks |
-| [`code/small_ward_data.R`](code/small_ward_data.R) | Example hospital configuration |
+| [`R/`](R) | Reusable simulation, inference, analysis, and plotting functions |
+| [`config/`](config) | Model parameters and hospital layouts |
+| [`scripts/demo.R`](scripts/demo.R) | Seeded simulation and inference demonstration |
+| [`scripts/run_accuracy_sweeps.R`](scripts/run_accuracy_sweeps.R) | Long-running simulation experiments |
+| [`reports/`](reports) | Authored Quarto reports |
+| [`tests/test-model.R`](tests/test-model.R) | Current model checks |
 | [`environment.yaml`](environment.yaml) | Preliminary Conda environment specification |
 | [`data/README.md`](data/README.md) | Data handling and provenance guidance |
 | [`docs/artifact-policy.md`](docs/artifact-policy.md) | Rules for generated and versioned outputs |
@@ -61,22 +60,27 @@ research code. The repository layout and artifact policy are being reorganized i
 
 ## Getting started
 
-The current simulation entry point requires R with the `Matrix` and `igraph`
-packages. Additional inference and reporting dependencies are being consolidated
-as part of the reproducibility work.
+The current workflow requires R with `here`, `Matrix`, `igraph`, `epicontacts`,
+`visNetwork`, `expm`, and `ggplot2`. Plot diagnostics and figure export also use
+`patchwork`, `htmlwidgets`, and `webshot2`. The complete environment is being
+consolidated as part of the reproducibility work.
 
 Clone the repository, install the required packages, and run the current
-demonstration from the `code` directory:
+demonstration from the repository root:
 
 ```sh
 git clone https://github.com/OskarHolmstedt/nosocomial_infection_model.git
-cd nosocomial_infection_model/code
-Rscript main.R
+cd nosocomial_infection_model
+Rscript scripts/demo.R
 ```
 
-This entry point simulates an outbreak and displays its infection-state matrix
-and transmission tree. It is an exploratory workflow rather than a stable
-command-line interface.
+The demo simulates a seeded outbreak, runs MCMC reconstruction, reports ancestry
+accuracy, creates diagnostic plots, and exports selected figures under
+`results/figures/`. For a quick smoke run without figure export:
+
+```sh
+NOSOCOMIAL_MCMC_SAMPLES=100 NOSOCOMIAL_SKIP_EXPORT=true Rscript scripts/demo.R
+```
 
 The committed Conda environment is not yet a complete dependency lockfile. A
 smaller canonical quick start and a reproducible environment are tracked in

@@ -531,11 +531,24 @@ plot_timeline <- function(outbreak_data, observed = TRUE, flip = FALSE, show_tre
   node_hex  <- setNames(nodes$color.background, nodes$id)
 
   # Helper: invisible anchor dot
-  dot <- function(id, x, y)
-    data.frame(id = id, label = "", x = x, y = y,
-               shape = "dot", size = 1,
-               color.background = "#ffffff", color.border = "#ffffff",
-               stringsAsFactors = FALSE)
+  dot <- function(id, x, y) {
+    if (length(id) == 0L || length(x) == 0L || length(y) == 0L) {
+      id <- character()
+      x <- y <- numeric()
+    }
+    n <- max(length(id), length(x), length(y))
+    data.frame(
+      id = rep_len(id, n),
+      label = rep("", n),
+      x = rep_len(x, n),
+      y = rep_len(y, n),
+      shape = rep("dot", n),
+      size = rep(1, n),
+      color.background = rep("#ffffff", n),
+      color.border = rep("#ffffff", n),
+      stringsAsFactors = FALSE
+    )
+  }
 
   if (!flip) {
     # --- Normal: time → x, bed index → y ---

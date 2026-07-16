@@ -15,18 +15,7 @@ execute:
 ```{r}
 #| label: setup
 
-library(Matrix)
-library(igraph)
-library(epicontacts)
-library(visNetwork)
-library(expm)
-
-source("plot_functions.R")
-source("prep_functions.R")
-source("two_wards_data.R")
-source("parameters.R")
-source("outbreak_simulation.R")
-source("mcmc.R")
+source(here::here("scripts", "_load_project.R"))
 ```
 
 ## Outbreak Simulation
@@ -34,8 +23,8 @@ source("mcmc.R")
 ```{r}
 #| label: simulate
 
-set.seed(3)
-T <- 50
+set.seed(7104)
+T <- 45
 OutbreakData <- simulate_outbreak(T, theta)
 ```
 
