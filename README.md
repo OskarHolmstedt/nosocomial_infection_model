@@ -52,6 +52,8 @@ seeded synthetic outbreak.
 | [`code/test.R`](code/test.R) | Current model checks |
 | [`code/small_ward_data.R`](code/small_ward_data.R) | Example hospital configuration |
 | [`environment.yaml`](environment.yaml) | Preliminary Conda environment specification |
+| [`data/README.md`](data/README.md) | Data handling and provenance guidance |
+| [`docs/artifact-policy.md`](docs/artifact-policy.md) | Rules for generated and versioned outputs |
 
 Generated figures and experiment outputs are currently stored alongside the
 research code. The repository layout and artifact policy are being reorganized in

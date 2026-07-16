@@ -1,0 +1,36 @@
+# Operating-system files
+.DS_Store
+Thumbs.db
+
+# R and IDE session state
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+.posit/
+.positai/
+
+# Quarto caches and rendered support directories
+.quarto/
+*_cache/
+*_files/
+
+# Regenerable intermediate, temporary, and scratch work
+intermediate/*
+!intermediate/README.md
+scratch/*
+!scratch/README.md
+tmp/*
+!tmp/README.md
+logs/*
+!logs/README.md
+
+# Locally rendered reports
+/sweep.html
+/code/outbreak.html
+
+# Generic graphics created by interactive or exploratory runs
+**/Rplot*.png
+/code/p[0-9]*.png
+/code/figures/debug_*.png
+/code/figures/debug_*.pdf
