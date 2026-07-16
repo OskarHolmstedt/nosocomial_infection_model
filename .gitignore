@@ -26,6 +26,8 @@ tmp/*
 !tmp/README.md
 logs/*
 !logs/README.md
+output/*
+!output/README.md
 
 # Locally rendered reports
 /sweep.html

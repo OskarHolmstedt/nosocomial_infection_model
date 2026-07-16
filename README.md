@@ -60,7 +60,8 @@ Its selected figures and supporting tables are documented under
 | --- | --- |
 | [`R/`](R) | Reusable simulation, inference, analysis, and plotting functions |
 | [`config/`](config) | Model parameters and hospital layouts |
-| [`scripts/demo.R`](scripts/demo.R) | Seeded simulation and inference demonstration |
+| [`scripts/quick_start.R`](scripts/quick_start.R) | Canonical seeded simulation and inference example |
+| [`scripts/demo.R`](scripts/demo.R) | Full poster-figure and diagnostic workflow |
 | [`scripts/run_accuracy_sweeps.R`](scripts/run_accuracy_sweeps.R) | Long-running simulation experiments |
 | [`reports/`](reports) | Authored Quarto reports |
 | [`tests/test-model.R`](tests/test-model.R) | Current model checks |
@@ -81,27 +82,36 @@ The current workflow requires R with `here`, `Matrix`, `igraph`, `epicontacts`,
 `patchwork`, `htmlwidgets`, and `webshot2`. The complete environment is being
 consolidated as part of the reproducibility work.
 
-Clone the repository, install the required packages, and run the current
-demonstration from the repository root:
+Clone the repository, install the required packages, and run the canonical
+example from the repository root:
 
 ```sh
 git clone https://github.com/OskarHolmstedt/nosocomial_infection_model.git
 cd nosocomial_infection_model
-Rscript scripts/demo.R
+Rscript scripts/quick_start.R
 ```
 
-The demo simulates a seeded outbreak, runs MCMC reconstruction, reports ancestry
-accuracy, creates diagnostic plots, and exports selected figures under
-`results/figures/`. For a quick smoke run without figure export:
+The default run takes about two seconds on a typical laptop and prints:
 
-```sh
-NOSOCOMIAL_MCMC_SAMPLES=100 NOSOCOMIAL_SKIP_EXPORT=true Rscript scripts/demo.R
+```text
+Quick start complete
+  Total simulated cases: 17
+  Observed cases: 10
+  MCMC samples: 1000 (+ 200 burn-in)
+  Ancestry mode accuracy: 0.400
+  Mean P(true ancestor): 0.463
+  Visualization: .../output/quick-start-reconstruction.html
 ```
 
-The committed Conda environment is not yet a complete dependency lockfile. A
-smaller canonical quick start and a reproducible environment are tracked in
-[issue #2](https://github.com/OskarHolmstedt/nosocomial_infection_model/issues/2)
-and [issue #3](https://github.com/OskarHolmstedt/nosocomial_infection_model/issues/3).
+Open `output/quick-start-reconstruction.html` in a browser to inspect the
+reconstructed transmission timeline. Keep its adjacent
+`quick-start-reconstruction_files/` directory with it. Both outputs are
+regenerable and ignored by Git.
+
+The full poster workflow remains in `scripts/demo.R`; long-running parameter
+sweeps are isolated in `scripts/run_accuracy_sweeps.R`. The committed Conda
+environment is not yet a complete dependency lockfile; that work is tracked in
+[issue #3](https://github.com/OskarHolmstedt/nosocomial_infection_model/issues/3).
 
 ## Project status
 

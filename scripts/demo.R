@@ -7,7 +7,7 @@ theta_demo <- local({
   th
 })
 
-# ── Simulate demo outbreak (seed 7104: 18 obs / 40 total cases) ───────────────
+# ── Simulate seeded poster example ────────────────────────────────────────────
 set.seed(7104)
 OutbreakDemo <- simulate_outbreak(T_demo, theta_demo)
 
