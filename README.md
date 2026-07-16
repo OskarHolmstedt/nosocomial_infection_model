@@ -1,46 +1,112 @@
-# Nosocomial infection model
+# Outbreak reconstruction for nosocomial infections
 
-## Project title
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![Status: active research](https://img.shields.io/badge/status-active%20research-orange)
 
-Outbreak reconstruction for nosocomial infections
+Research code for simulating hospital outbreaks and reconstructing plausible
+transmission chains from incomplete epidemiological and genetic observations.
 
-## Description
+## Overview
 
-Developing a method for inferring transmission chains in a hospital setting using Bayesian statistics. Developing a model for simulating infectious disease outbreaks in a hospital setting. Apply the statistical method to both simulated data and real hospital data.
+Nosocomial outbreak investigations rarely observe every infected patient or the
+exact time and source of each transmission. This project develops a Bayesian
+framework for reasoning about those missing events. It combines a stochastic,
+spatially structured hospital model with Markov chain Monte Carlo (MCMC)
+inference of infection times, transmission ancestors, and unobserved generations
+between detected cases.
 
-## Scope and purpose
+The current work focuses on synthetic outbreaks, where the inferred transmission
+history can be compared with known ground truth. The longer-term aim is to apply
+the method to real hospital data.
 
-## Project members
+## Model workflow
 
--   Oskar Holmstedt, PhD student, [oskholms\@chalmers.se](mailto:oskholms@chalmers.se){.email}
--   Philip Gerlee, supervisor, [gerlee\@chalmers.se](mailto:gerlee@chalmers.se){.email}
--   Jon Edman Wallér, co-supervisor, [jon.edman\@vgregion.se](mailto:jon.edman@vgregion.se){.email}
--   Torbjörn Lundh, co-supervisor, [torbjorn.lundh\@chalmers.se](mailto:torbjorn.lundh@chalmers.se){.email}
+1. Construct a hospital with beds grouped into rooms and wards.
+2. Simulate transmission, testing, admission, and discharge over time.
+3. Retain the partially observed outbreak and pairwise genetic distances.
+4. Use MCMC to sample compatible infection times and transmission trees.
+5. Evaluate reconstruction quality against the simulated ground truth.
 
-## Organisation
+The model allows transmission rates to differ within a room, within a ward, and
+across the hospital. Genetic information can be included or omitted to assess
+how much it contributes to reconstruction.
 
-### Folder structure
+## Example reconstruction
 
--   nosocomial_infection_model
-    -   code - R code
-        -   jkl.r
-        -   README.md
-    -   data - Hospital records
-    -   doc - Documentation
-    -   intermediate – Intermediate results
-    -   logs - Logs for runs
-    -   results - Results of analysis
-    -   tmp - Temporary files produced during runs
-    -   README.md - This file
+![Example posterior-mode reconstruction of a simulated hospital outbreak](code/figures/demo_mode.png)
 
-### File naming convention
+Patient stays are arranged along the time axis and coloured by ward. Nodes mark
+detected cases, while arrows show reconstructed transmission links. Edge colour
+indicates the spatial scale of transmission. This example was generated from a
+seeded synthetic outbreak.
 
-### File formats
+## Repository guide
 
-## Data manegement plan
+| Path | Contents |
+| --- | --- |
+| [`code/outbreak_simulation.R`](code/outbreak_simulation.R) | Stochastic outbreak simulation |
+| [`code/mcmc.R`](code/mcmc.R) | Bayesian transmission reconstruction and scoring |
+| [`code/prep_functions.R`](code/prep_functions.R) | Hospital layout and contact structure |
+| [`code/parameters.R`](code/parameters.R) | Model parameters |
+| [`code/main.R`](code/main.R) | Current simulation entry point |
+| [`code/test.R`](code/test.R) | Current model checks |
+| [`code/small_ward_data.R`](code/small_ward_data.R) | Example hospital configuration |
+| [`environment.yaml`](environment.yaml) | Preliminary Conda environment specification |
 
-## Environment
+Generated figures and experiment outputs are currently stored alongside the
+research code. The repository layout and artifact policy are being reorganized in
+[issue #4](https://github.com/OskarHolmstedt/nosocomial_infection_model/issues/4).
 
-conda env create -n project_nosocomial -f environment.yml
+## Getting started
 
-[![DOI](https://sandbox.zenodo.org/badge/1079890670.svg)](https://handle.test.datacite.org/10.5072/zenodo.389396)
+The current simulation entry point requires R with the `Matrix` and `igraph`
+packages. Additional inference and reporting dependencies are being consolidated
+as part of the reproducibility work.
+
+Clone the repository, install the required packages, and run the current
+demonstration from the `code` directory:
+
+```sh
+git clone https://github.com/OskarHolmstedt/nosocomial_infection_model.git
+cd nosocomial_infection_model/code
+Rscript main.R
+```
+
+This entry point simulates an outbreak and displays its infection-state matrix
+and transmission tree. It is an exploratory workflow rather than a stable
+command-line interface.
+
+The committed Conda environment is not yet a complete dependency lockfile. A
+smaller canonical quick start and a reproducible environment are tracked in
+[issue #2](https://github.com/OskarHolmstedt/nosocomial_infection_model/issues/2)
+and [issue #3](https://github.com/OskarHolmstedt/nosocomial_infection_model/issues/3).
+
+## Project status
+
+This repository contains research software under active development. Interfaces,
+model assumptions, output formats, and results may change. The code has not yet
+been prepared as a stable R package, and no archival software release has been
+published.
+
+No confidential hospital records or patient-level data should be committed to
+this repository. The data currently included are generated from simulations.
+
+## Project team
+
+- Oskar Holmstedt — PhD student — [oskholms@chalmers.se](mailto:oskholms@chalmers.se)
+- Philip Gerlee — supervisor — [gerlee@chalmers.se](mailto:gerlee@chalmers.se)
+- Jon Edman Wallér — co-supervisor — [jon.edman@vgregion.se](mailto:jon.edman@vgregion.se)
+- Torbjörn Lundh — co-supervisor — [torbjorn.lundh@chalmers.se](mailto:torbjorn.lundh@chalmers.se)
+
+## Citation
+
+There is not yet a citable software release or permanent DOI. Until one is
+available, cite the repository and include the commit or release used:
+
+> Holmstedt, O. *Outbreak reconstruction for nosocomial infections*. Research
+> software, work in progress.
+> <https://github.com/OskarHolmstedt/nosocomial_infection_model>
+
+## License
+
+The source code is available under the [MIT License](LICENSE).
