@@ -1,0 +1,107 @@
+---
+title: "Nosocomial Infection Model"
+date: today
+format:
+  html:
+    toc: true
+    code-fold: true
+execute:
+  warning: false
+  message: false
+---
+
+## Setup
+
+```{r}
+#| label: setup
+
+library(Matrix)
+library(igraph)
+library(epicontacts)
+library(visNetwork)
+library(expm)
+
+source("plot_functions.R")
+source("prep_functions.R")
+source("two_wards_data.R")
+source("parameters.R")
+source("outbreak_simulation.R")
+source("mcmc.R")
+```
+
+## Outbreak Simulation
+
+```{r}
+#| label: simulate
+
+set.seed(3)
+T <- 50
+OutbreakData <- simulate_outbreak(T, theta)
+```
+
+## Timeline Plots
+
+```{r}
+#| label: fig-full-unobserved
+#| fig-cap: "Full outbreak (unobserved), all stays shown."
+
+plot_timeline(OutbreakData, observed = FALSE, show_all_stays = TRUE)
+```
+
+```{r}
+#| label: fig-observed-default
+#| fig-cap: "Observed outbreak (default view)."
+
+plot_timeline(OutbreakData)
+```
+
+```{r}
+#| label: fig-observed-all-stays
+#| fig-cap: "Observed outbreak, all stays shown."
+
+plot_timeline(OutbreakData, show_all_stays = TRUE)
+```
+
+```{r}
+#| label: fig-no-tree-all-stays
+#| fig-cap: "No transmission tree, all stays shown."
+
+plot_timeline(OutbreakData, show_tree = FALSE, show_all_stays = TRUE)
+```
+
+```{r}
+#| label: fig-no-tree-unobserved-all-stays
+#| fig-cap: "No transmission tree, unobserved, all stays shown."
+
+plot_timeline(OutbreakData, show_tree = FALSE, observed = FALSE, show_all_stays = TRUE)
+```
+
+```{r}
+#| label: fig-no-tree-observed
+#| fig-cap: "No transmission tree, observed, stays hidden."
+
+plot_timeline(OutbreakData, show_tree = FALSE, observed = TRUE, show_all_stays = FALSE)
+```
+
+```{r}
+#| label: fig-flipped
+#| fig-cap: "Flipped timeline."
+
+plot_timeline(OutbreakData, flip = TRUE)
+```
+
+```{r}
+#| label: fig-edge-width-gen
+#| fig-cap: "Timeline with edge width scaled by generation."
+
+plot_timeline(OutbreakData, edge_width_by = "gen")
+```
+
+## MCMC
+
+```{r}
+#| label: mcmc
+#| cache: true
+
+Y <- mcmc(OutbreakData, N_samples = 10000)
+```
