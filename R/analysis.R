@@ -21,7 +21,7 @@ r_0 <- function(theta) {
 outbreak_prevalence <- function(OutbreakData) {
   theta  <- OutbreakData$theta
   State  <- OutbreakData$State
-  n_beds <- theta$spatial_sizes[1] * theta$spatial_sizes[2]
+  n_beds <- theta$spatial_sizes[3]   # spatial_sizes[3] = NumBeds (total beds)
 
   # Restrict to bed rows only (exclude room-aggregate nodes)
   State <- State[seq_len(n_beds), , drop = FALSE]

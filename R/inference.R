@@ -230,8 +230,8 @@ create_s_matrix_extended <- function(Rec) {
   S <- matrix(0L, n, n)
 
   # patient <- patient
-  pp <- outer(which(is_pat), which(is_pat))
-  S[pp] <- (3L - same_ward[pp] - same_room[pp])
+  pat_idx <- which(is_pat)
+  S[pat_idx, pat_idx] <- 3L - same_ward[pat_idx, pat_idx] - same_room[pat_idx, pat_idx]
 
   # patient <- room (same room only; cross-room contamination not modelled)
   pr_i <- which(is_pat)
