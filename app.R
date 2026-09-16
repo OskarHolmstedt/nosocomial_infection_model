@@ -93,7 +93,7 @@ ui <- page_sidebar(
       # ── Genomics ──────────────────────────────────────────────────────────
       accordion_panel(
         "Genomics",
-        icon = bs_icon("dna"),
+        icon = bs_icon("braces-asterisk"),
         num_slider("mu", HTML("&mu; — mutations per transmission"), 1, 10, 2, 1)
       ),
 
