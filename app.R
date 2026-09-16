@@ -313,12 +313,18 @@ server <- function(input, output, session) {
 
     set.seed(seed + 1L, kind = "Mersenne-Twister",
              normal.kind = "Inversion", sample.kind = "Rejection")
-    fit <- mcmc(ob, N_samples = n, burn_in = bi, inference_mode = mode)
+    # use_room_tests = FALSE: all simulated room episodes are candidates.
+    # TRUE would restrict to swab-positive rooms only; at 5% daily swab rate
+    # most room ancestors would be invisible and accuracy collapses. Both the
+    # MCMC call and the scoring call must use the same setting.
+    use_rt <- FALSE
+    fit <- mcmc(ob, N_samples = n, burn_in = bi,
+                inference_mode = mode, use_room_tests = use_rt)
     fit_rv(fit)
 
     # 3 ── Score (patient-only or room-aware depending on inference mode)
     sc <- if (mode == "patients_and_rooms") {
-      truth <- build_room_aware_truth(ob, use_room_tests = TRUE)
+      truth <- build_room_aware_truth(ob, use_room_tests = use_rt)
       ancestry_score(truth$true_anc, fit$anc,
                      truth$adm_times, truth$ptest_times)
     } else {
