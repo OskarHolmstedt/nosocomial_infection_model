@@ -318,7 +318,7 @@ server <- function(input, output, session) {
 
     # 3 ── Score (patient-only or room-aware depending on inference mode)
     sc <- if (mode == "patients_and_rooms") {
-      truth <- build_room_aware_truth(ob, use_room_tests = FALSE)
+      truth <- build_room_aware_truth(ob, use_room_tests = TRUE)
       ancestry_score(truth$true_anc, fit$anc,
                      truth$adm_times, truth$ptest_times)
     } else {
