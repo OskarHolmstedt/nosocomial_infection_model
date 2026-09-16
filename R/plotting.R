@@ -333,6 +333,7 @@ plot_timeline_mode <- function(outbreak_data, Y,
   out   <- plot_timeline(outbreak_data, observed = TRUE, show_tree = TRUE,
                          edge_colors = edge_colors, gen_scale = gen_scale,
                          inf_override = inf_override, ...)
+  # show_rooms and room styling are forwarded via ... if supplied
 
   # ── Per-case posterior probabilities ────────────────────────────────────────
   # p_true[i]: fraction of samples where the true ancestor was sampled
@@ -471,6 +472,9 @@ plot_gantt <- function(epi, positions, node_color = "Room", num_days = NULL,
 # flip = FALSE: time on x, beds on y.  flip = TRUE: beds on x, time on y (top = day 0).
 plot_timeline <- function(outbreak_data, observed = TRUE, flip = FALSE, show_tree = TRUE,
                           show_all_stays = FALSE,
+                          show_rooms = FALSE,          # overlay room contamination rows below beds
+                          room_fill = "#d5d8dc",       # ghost-bar fill for room episodes
+                          room_edge_color = "#8e44ad", # patient <-> room transmission edge colour
                           node_color = "Room", edge_label = "V3",
                           x_scale = 40, y_scale = 40, tick_by = 5, height = "600px",
                           node_font_size = 1, edge_font_size = 1,
@@ -715,6 +719,152 @@ plot_timeline <- function(outbreak_data, observed = TRUE, flip = FALSE, show_tre
 
   bg_e <- if (show_all_stays) bg_edges else NULL
 
+  # ── Room contamination rows (non-flip only) ────────────────────────────────
+  # Initialise as empty so they can always be referenced in edge assembly.
+  empty_edges <- data.frame(from = character(), to = character(),
+                             arrows = character(), color = character(),
+                             width = numeric(), smooth = logical(),
+                             stringsAsFactors = FALSE)
+  room_ghost_edges <- room_marker_edges <- room_tx_edges <-
+    room_guide_edges_r <- empty_edges
+
+  if (show_rooms && !flip) {
+    room_src <- if (observed) outbreak_data$ObsRoomRec else outbreak_data$CaseRoomRec
+    if (!is.null(room_src) && nrow(room_src) > 0)
+      room_src <- room_src[!is.na(room_src$Infc), , drop = FALSE]
+
+    if (!is.null(room_src) && nrow(room_src) > 0) {
+      positions_all <- outbreak_data$theta$Positions
+      room_pos_rows <- positions_all[rownames(positions_all) == positions_all$Room, ,
+                                     drop = FALSE]
+      uniq_rooms  <- rownames(room_pos_rows)[rownames(room_pos_rows) %in% room_src$Room]
+      room_row_of <- setNames(seq_along(uniq_rooms), uniq_rooms)
+      ep_y        <- (n_beds + room_row_of[room_src$Room]) * y_scale
+
+      # ── Episode nodes (square, muted fill, dashed border) ─────────────────
+      ep_id <- paste0(".room.", room_src$Id)
+      room_nodes_df <- data.frame(
+        id               = ep_id,
+        label            = room_src$Room,
+        x                = room_src$Infc * x_scale,
+        y                = ep_y,
+        shape            = "square",
+        size             = 14,
+        color.background = room_fill,
+        color.border     = "#7f8c8d",
+        borderWidth      = 2,
+        borderDashes     = TRUE,
+        font.size        = 11,
+        font.color       = "#555555",
+        group            = "Room",
+        stringsAsFactors = FALSE
+      )
+
+      # ── Ghost bars: Adm → Clean (dashed, muted) ────────────────────────────
+      ep_clean_x <- pmin(
+        ifelse(is.na(room_src$Clean), num_days, room_src$Clean), num_days
+      ) * x_scale
+      r_left  <- dot(paste0(".rL.", room_src$Id), room_src$Adm * x_scale, ep_y)
+      r_right <- dot(paste0(".rR.", room_src$Id), ep_clean_x,              ep_y)
+      room_ghost_edges <- data.frame(
+        from   = paste0(".rL.", room_src$Id),
+        to     = paste0(".rR.", room_src$Id),
+        arrows = "", color = room_fill,
+        width  = ghost_width * 0.65, smooth = FALSE, dashes = TRUE,
+        stringsAsFactors = FALSE
+      )
+
+      # ── Positive-swab markers ──────────────────────────────────────────────
+      pt_rows <- room_src[!is.na(room_src$PTest), , drop = FALSE]
+      if (nrow(pt_rows) > 0) {
+        pt_y     <- ep_y[match(pt_rows$Id, room_src$Id)]
+        pt_half  <- ghost_width * 0.33
+        r_pt_top <- dot(paste0(".rptT.", pt_rows$Id),
+                        pt_rows$PTest * x_scale, pt_y - pt_half)
+        r_pt_bot <- dot(paste0(".rptB.", pt_rows$Id),
+                        pt_rows$PTest * x_scale, pt_y + pt_half)
+        room_marker_edges <- data.frame(
+          from = paste0(".rptT.", pt_rows$Id), to = paste0(".rptB.", pt_rows$Id),
+          arrows = "", color = "#2c3e50", width = 1.5, smooth = FALSE,
+          stringsAsFactors = FALSE
+        )
+      } else {
+        r_pt_top <- r_pt_bot <- dot(character(), numeric(), numeric())
+      }
+
+      # ── Row labels and guide lines ─────────────────────────────────────────
+      r_label_nodes <- data.frame(
+        id    = paste0(".rlbl.", uniq_rooms),
+        label = uniq_rooms,
+        x = -50L,
+        y = (n_beds + room_row_of[uniq_rooms]) * y_scale,
+        shape = "text", font.size = 13, font.color = "#888888",
+        stringsAsFactors = FALSE
+      )
+      r_guide_L <- dot(paste0(".rgL.", seq_along(uniq_rooms)),
+                       0,       (n_beds + room_row_of[uniq_rooms]) * y_scale)
+      r_guide_R <- dot(paste0(".rgR.", seq_along(uniq_rooms)),
+                       x_right, (n_beds + room_row_of[uniq_rooms]) * y_scale)
+      room_guide_edges_r <- data.frame(
+        from = paste0(".rgL.", seq_along(uniq_rooms)),
+        to   = paste0(".rgR.", seq_along(uniq_rooms)),
+        arrows = "", color = "#dddddd", width = 0.5, smooth = FALSE,
+        stringsAsFactors = FALSE
+      )
+
+      # ── Patient <-> room edges (using Anc3_all ground truth) ──────────────
+      all_cr <- outbreak_data$CaseRec
+      all_rr <- outbreak_data$CaseRoomRec
+      if (!is.null(all_cr) && !is.null(all_rr) &&
+          "Anc3_all" %in% names(all_cr) && nrow(all_rr) > 0) {
+        n_pat          <- nrow(all_cr)
+        shown_pat_ids  <- ll$id
+        shown_room_ids <- ep_id
+
+        # Room → patient
+        rp <- all_cr[!is.na(all_cr$Anc3_all) & all_cr$Anc3_all > n_pat, ,
+                      drop = FALSE]
+        if (nrow(rp) > 0) {
+          rr_row <- rp$Anc3_all - n_pat
+          valid  <- rr_row >= 1L & rr_row <= nrow(all_rr)
+          rp <- rp[valid, ]; rr_row <- rr_row[valid]
+          from_id <- paste0(".room.", all_rr$Id[rr_row])
+          to_id   <- rp$Id
+          keep    <- from_id %in% shown_room_ids & to_id %in% shown_pat_ids
+          if (any(keep))
+            room_tx_edges <- rbind(room_tx_edges, data.frame(
+              from = from_id[keep], to = to_id[keep],
+              arrows = "to", color = room_edge_color,
+              width = 2, smooth = FALSE, dashes = TRUE,
+              stringsAsFactors = FALSE
+            ))
+        }
+
+        # Patient → room
+        pr <- all_rr[!is.na(all_rr$Anc3_all) & all_rr$Anc3_all <= n_pat, ,
+                      drop = FALSE]
+        if (nrow(pr) > 0) {
+          from_id <- all_cr$Id[pr$Anc3_all]
+          to_id   <- paste0(".room.", pr$Id)
+          keep    <- from_id %in% shown_pat_ids & to_id %in% shown_room_ids
+          if (any(keep))
+            room_tx_edges <- rbind(room_tx_edges, data.frame(
+              from = from_id[keep], to = to_id[keep],
+              arrows = "to", color = room_edge_color,
+              width = 2, smooth = FALSE, dashes = TRUE,
+              stringsAsFactors = FALSE
+            ))
+        }
+      }
+
+      out$x$nodes <- dplyr::bind_rows(
+        out$x$nodes, room_nodes_df,
+        r_left, r_right, r_pt_top, r_pt_bot,
+        r_label_nodes, r_guide_L, r_guide_R
+      )
+    }
+  }
+
   if (show_tree) {
     # Transmission edge color and width
     node_room <- setNames(ll$Room, ll$id)
@@ -734,11 +884,17 @@ plot_timeline <- function(outbreak_data, observed = TRUE, flip = FALSE, show_tre
     } else {
       gen_scale * (1 + as.numeric(tx[[edge_label]]))
     }
-    out$x$edges <- dplyr::bind_rows(bg_e, ghost_edges, marker_edges, tx, axis_edge, spine_edge, guide_edges)
+    out$x$edges <- dplyr::bind_rows(bg_e, ghost_edges, marker_edges, tx,
+                                      room_ghost_edges, room_marker_edges,
+                                      room_tx_edges, room_guide_edges_r,
+                                      axis_edge, spine_edge, guide_edges)
   } else {
     # Background only: drop case nodes and transmission edges
     out$x$nodes <- out$x$nodes[!out$x$nodes$id %in% ll$id, ]
-    out$x$edges <- dplyr::bind_rows(bg_e, ghost_edges, marker_edges, axis_edge, spine_edge, guide_edges)
+    out$x$edges <- dplyr::bind_rows(bg_e, ghost_edges, marker_edges,
+                                      room_ghost_edges, room_marker_edges,
+                                      room_guide_edges_r,
+                                      axis_edge, spine_edge, guide_edges)
   }
 
   if (!show_tree) {

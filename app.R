@@ -348,7 +348,8 @@ server <- function(input, output, session) {
   # ── Ground-truth timeline ─────────────────────────────────────────────────
   output$true_tree <- renderVisNetwork({
     ob <- outbreak_rv(); req(ob, nrow(ob$ObsRec) >= 2L)
-    plot_timeline(ob, observed = TRUE, show_all_stays = TRUE)
+    plot_timeline(ob, observed = TRUE, show_all_stays = TRUE,
+                  show_rooms = isTRUE(input$use_room_transmission))
   })
 
   # ── Reconstruction timeline ───────────────────────────────────────────────
