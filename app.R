@@ -316,9 +316,15 @@ server <- function(input, output, session) {
     fit <- mcmc(ob, N_samples = n, burn_in = bi, inference_mode = mode)
     fit_rv(fit)
 
-    # 3 ── Score
-    sc <- ancestry_score(ob$ObsRec$Anc2, fit$anc,
-                         ob$ObsRec$Adm,  ob$ObsRec$PTest)
+    # 3 ── Score (patient-only or room-aware depending on inference mode)
+    sc <- if (mode == "patients_and_rooms") {
+      truth <- build_room_aware_truth(ob, use_room_tests = FALSE)
+      ancestry_score(truth$true_anc, fit$anc,
+                     truth$adm_times, truth$ptest_times)
+    } else {
+      ancestry_score(ob$ObsRec$Anc2, fit$anc,
+                     ob$ObsRec$Adm,  ob$ObsRec$PTest)
+    }
     score_rv(sc)
 
     show_toast(
