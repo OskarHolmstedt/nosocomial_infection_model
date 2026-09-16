@@ -1,0 +1,384 @@
+---
+title: "Nosocomial Outbreak Reconstruction"
+subtitle: "Bayesian inference of hospital transmission trees from incomplete observations"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    embed-resources: true
+  pdf:
+    documentclass: article
+    papersize: a4
+    geometry: "left=2.5cm,right=2.5cm,top=2.8cm,bottom=2.8cm"
+    fontsize: 11pt
+    linestretch: 1.15
+    number-sections: true
+    toc: true
+    toc-depth: 3
+    lof: true
+    colorlinks: true
+    linkcolor: "NavyBlue"
+    citecolor: "NavyBlue"
+    urlcolor: "NavyBlue"
+    include-in-header:
+      text: |
+        \usepackage{booktabs}
+        \usepackage{float}
+        \usepackage{microtype}
+        \usepackage{xcolor}
+execute:
+  echo: false
+---
+
+```{r}
+#| label: setup
+source(here::here("scripts", "_load_project.R"))
+library(dplyr)
+library(ggplot2)
+library(knitr)
+
+fig_dir <- here::here("figures", "pdf")
+dir.create(fig_dir, recursive = TRUE, showWarnings = FALSE)
+
+R0_val <- r_0(theta)
+
+
+```
+
+{{< pagebreak >}}
+
+## Background
+
+Hospital-acquired (nosocomial) infections are rarely observed in their entirety. A patient may be infected days before a diagnostic test returns positive, and patients who are discharged or never tested remain invisible to standard surveillance. The result is a fragmented picture of the outbreak: a subset of cases is detected, each recorded with a positive-test date rather than the true infection date, and the underlying transmission links are completely latent.
+
+This supplement documents three use cases of the simulation and inference framework:
+
+1.  **Simulating** a synthetic outbreak on a two-ward hospital and inspecting its dynamics against the deterministic SIS endemic equilibrium.
+2.  **Reconstructing** the posterior distribution over transmission trees from the incomplete observed data via Markov chain Monte Carlo (MCMC).
+3.  **Assessing the value of genomic data** by comparing reconstruction accuracy with and without pairwise SNP distances.
+
+------------------------------------------------------------------------
+
+## The Model {#sec-model}
+
+### Hospital structure
+
+The hospital is modelled as a three-level spatial hierarchy: beds are nested inside rooms, rooms inside wards. All experiments below use a two-ward layout:
+
+```{r}
+#| label: tbl-layout
+#| tbl-cap: "Hospital layout used in all experiments."
+data.frame(
+  Level = c("Wards", "Rooms per ward", "Beds per room", "Total beds"),
+  Value = c(
+    length(unique(Positions$Ward)),
+    NumRooms / length(unique(Positions$Ward)),
+    NumBeds / NumRooms,
+    NumBeds
+  )
+) |>
+  kable(booktabs = TRUE, col.names = c("Level", "Count"), align = "lr")
+```
+
+### Transmission dynamics
+
+Each day, a susceptible bed $i$ is exposed to the infectious pressure from every currently infected bed $j$. The per-contact transmission rate depends on the spatial relationship between $i$ and $j$:
+
+$$\beta_{ij} =
+\begin{cases}
+\beta_{\text{room}} & \text{if } i \text{ and } j \text{ share a room} \\[4pt]
+\beta_{\text{ward}} & \text{if } i \text{ and } j \text{ share a ward (different rooms)} \\[4pt]
+\beta_{\text{hosp}} & \text{otherwise}
+\end{cases}$$
+
+with default values $\beta_{\text{room}} = 0.08$, $\beta_{\text{ward}} = 0.005$, $\beta_{\text{hosp}} = 0.0005$.
+
+The probability that susceptible bed $i$ **escapes** infection on day $t$ is the product of escape probabilities over all currently infected contacts:
+
+$$P\!\left(\text{escape}_{i} \mid t\right)
+= \prod_{j \in \mathcal{I}(t)} \left(1 - \beta_{ij}\right)$$
+
+so the infection probability is $1 - P(\text{escape}_i \mid t)$.
+
+### Basic reproduction number
+
+With $n_s$ potential contacts at spatial scale $s$ and daily discharge rate $p_{\text{dis}}$, the basic reproduction number of the SIS model is
+
+$$\mathcal{R}_0
+= \frac{\displaystyle\sum_{s} \beta_s\, n_s}{p_{\text{dis}}}
+= \frac{\beta_{\text{room}}\,(n_{\text{room}}-1)
+       + \beta_{\text{ward}}\,(n_{\text{ward}}-n_{\text{room}})
+       + \beta_{\text{hosp}}\,(N-n_{\text{ward}})}
+       {p_{\text{dis}}}$$
+
+For the default parameters, $\mathcal{R}_0 = `r round(R0_val, 2)`$, implying a deterministic SIS endemic prevalence of $1 - 1/\mathcal{R}_0 \approx `r round(100*(1 - 1/R0_val))`\%$.
+
+### Genomic observations
+
+Mutations accumulate along each transmission edge as independent Poisson events with mean $\mu$ per generation. For two cases $i$ and $j$ separated by $\kappa_{ij}$ transmission steps, the observed pairwise SNP distance satisfies
+
+$$D_{ij} \;\sim\; \operatorname{Poisson}\!\left(\mu\,\kappa_{ij}\right)$$
+
+with $\mu = 2$ mutations per transmission event.
+
+### Bayesian reconstruction
+
+Let $\mathbf{a}$ denote the vector of ancestor assignments (with $a_i = \text{NA}$ indicating community importation) and $\mathbf{t}_{\text{inf}}$ the vector of infection times. Given observed positive-test records $\mathbf{t}_{\text{obs}}$ and pairwise SNP distances $\mathbf{D}$, the MCMC targets the joint posterior
+
+$$\pi\!\left(\mathbf{a},\,\mathbf{t}_{\text{inf}}
+    \;\middle|\;
+    \mathbf{D},\,\mathbf{t}_{\text{obs}}\right)
+\;\propto\;
+\underbrace{\prod_{i,j} \mathcal{L}(D_{ij} \mid \kappa_{ij})}_{\text{genomic likelihood}}
+\;\cdot\;
+\underbrace{\prod_i \mathcal{L}(t_{\text{obs},i} \mid t_{\text{inf},i})}_{\text{testing likelihood}}
+\;\cdot\;
+\underbrace{p_{\text{contact}}(\mathbf{a} \mid \mathbf{t}_{\text{inf}})}_{\text{spatial prior}}
+\;\cdot\;
+\underbrace{\pi_{\text{import}}(\mathbf{a})}_{\text{import prior}}$$
+
+The spatial prior $p_{\text{contact}}$ assigns higher prior probability to ancestor--descendant pairs that share the same room or ward and whose inferred infection times are temporally consistent with the daily contact matrix.
+
+The sampler alternates four proposal types:
+
+- **Infection time updates** --- each case's infection time is resampled from its conditional given the current ancestor and descendant times.
+- **Ancestor updates** --- each case's ancestor is resampled from the conditional posterior over all temporally eligible candidates.
+- **Subtree shifts** --- a randomly chosen subtree has all infection times shifted simultaneously, improving mixing over correlated times.
+- $\kappa$ updates --- the transmission-step parameter is updated jointly for each ancestor--descendant pair.
+
+------------------------------------------------------------------------
+
+## Use Case 1 --- Simulating an Outbreak {#sec-sim}
+
+### Setup
+
+```{r}
+#| label: sim-run
+theta_demo <- local({
+  th        <- theta
+  th$P$Init <- c(1, rep(0, NumBeds - 1), rep(0, NumRooms))
+  th
+})
+
+set.seed(81369)
+outbreak <- simulate_outbreak(45, theta_demo)
+```
+
+A single infected patient is seeded in bed 1 on day 0 and the model is run for 45 days. This yielded `r nrow(outbreak$CaseRec)` total infections, of which `r nrow(outbreak$ObsRec)` were detected (tested positive before discharge). Only cases that test positive *before* discharge enter the observed data set; the remaining `r nrow(outbreak$CaseRec) - nrow(outbreak$ObsRec)` infected patients form the **hidden** portion of the outbreak.
+
+### Prevalence dynamics
+
+```{r}
+#| label: fig-prevalence
+#| fig-cap: "Simulated daily prevalence (blue line) for a 45-day outbreak. The dashed red line is the deterministic SIS endemic equilibrium $1 - 1/\\mathcal{R}_0$; the dotted green line is the simulation-mean prevalence."
+#| fig-height: 3.8
+prev <- outbreak_prevalence(outbreak)
+plot_prevalence(prev)
+```
+
+### Ground-truth transmission trees
+
+Each horizontal bar below is a patient stay; directed edges follow the true transmission tree. Edge colour encodes spatial scale (same room, same ward, hospital-wide).
+
+```{r}
+#| label: fig-true-tree
+#| fig-cap: "Ground-truth transmission tree --- all cases, including unobserved. Edges are coloured by spatial scale of transmission."
+#| fig-pos: H
+#| out-width: "100%"
+if (knitr::is_html_output()) {
+  plot_timeline(outbreak, observed = FALSE, show_all_stays = TRUE)
+} else {
+  p_all <- plot_timeline(outbreak, observed = FALSE, show_all_stays = TRUE)
+  save_timeline(p_all, file.path(fig_dir, "true-tree-all.png"), width = 1400)
+  knitr::include_graphics(file.path(fig_dir, "true-tree-all.png"))
+}
+```
+
+```{r}
+#| label: fig-obs-tree
+#| fig-cap: "Ground-truth tree restricted to observed (test-positive) cases."
+#| fig-pos: H
+#| out-width: "100%"
+if (knitr::is_html_output()) {
+  plot_timeline(outbreak, observed = TRUE, show_all_stays = TRUE)
+} else {
+  p_obs <- plot_timeline(outbreak, observed = TRUE, show_all_stays = TRUE)
+  save_timeline(p_obs, file.path(fig_dir, "true-tree-obs.png"), width = 1400)
+  knitr::include_graphics(file.path(fig_dir, "true-tree-obs.png"))
+}
+```
+
+------------------------------------------------------------------------
+
+## Use Case 2 --- Bayesian Reconstruction via MCMC {#sec-mcmc}
+
+Given only the observed case records and pairwise SNP distances, we run MCMC to reconstruct the posterior distribution over transmission trees.
+
+```{r}
+#| label: mcmc-run
+set.seed(2413)
+fit <- mcmc(outbreak, N_samples = 3000, burn_in = 500)
+
+score <- ancestry_score(
+  outbreak$ObsRec$Anc2,
+  fit$anc,
+  outbreak$ObsRec$Adm,
+  outbreak$ObsRec$PTest
+)
+```
+
+### Reconstruction accuracy
+
+```{r}
+#| label: tbl-score
+#| tbl-cap: "Ancestry reconstruction accuracy metrics (3 000 post-burn-in samples)."
+data.frame(
+  Metric = c("Mode accuracy", "Mean $P$(true ancestor)",
+             "Mean lift", "Log skill"),
+  Value  = round(c(score$mode_accuracy, score$mean_p_true,
+                   mean(score$lift),    score$log_skill), 3),
+  Description = c(
+    "Fraction of cases where the posterior-mode ancestor equals the true ancestor",
+    "Average posterior probability assigned to the true ancestor",
+    "Mean ratio of $P$(true ancestor) to uniform-random baseline",
+    "Mean $\\log$(lift); 0 indicates performance at chance"
+  )
+) |>
+  kable(booktabs = TRUE, escape = FALSE,
+        col.names = c("Metric", "Value", "Description"),
+        align = c("l", "r", "l"))
+```
+
+### Posterior-mode reconstruction
+
+```{r}
+#| label: fig-reconstruction
+#| fig-cap: "Posterior-mode reconstruction overlaid on the ground-truth tree. Green edges are correctly inferred transmissions; red edges are errors. Edge width reflects posterior support."
+#| fig-pos: H
+#| out-width: "100%"
+if (knitr::is_html_output()) {
+  plot_timeline_mode(outbreak, fit, color_edges = TRUE, color_nodes = FALSE)
+} else {
+  p_mode <- plot_timeline_mode(outbreak, fit, color_edges = TRUE, color_nodes = FALSE)
+  save_timeline(p_mode, file.path(fig_dir, "reconstruction-mode.png"), width = 1400)
+  knitr::include_graphics(file.path(fig_dir, "reconstruction-mode.png"))
+}
+```
+
+### MCMC convergence diagnostics
+
+```{r}
+#| label: fig-diagnostics
+#| fig-cap: "MCMC convergence panel. Top row: trace and running mean of community imports (left) and mean infection time (right), with orange dashed lines marking the ground truth. Bottom row: ancestry raster (cases $\\times$ iterations; rapid switching indicates good mixing) and per-case posterior entropy coloured by mode correctness."
+#| fig-height: 8.5
+plot_mcmc_diagnostics(fit, outbreak)
+```
+
+### Posterior accuracy per case
+
+```{r}
+#| label: fig-mode-vs-truth
+#| fig-cap: "Scatter of $P$(true ancestor) vs.\\ posterior-mode probability for each case. Points above the diagonal indicate cases where the mode concentrates on the wrong ancestor. Point size is inversely proportional to the number of eligible ancestors."
+#| fig-height: 4.2
+plot_mode_vs_truth(fit, outbreak)
+```
+
+------------------------------------------------------------------------
+
+## Use Case 3 --- Value of Genomic Data {#sec-genetics}
+
+We re-run MCMC on the same outbreak with `use_genetics = FALSE`, replacing the Poisson genomic likelihood with a flat term, to isolate the contribution of SNP distances.
+
+```{r}
+#| label: mcmc-nogen
+set.seed(8831)
+fit_nogen <- mcmc(outbreak, N_samples = 3000, burn_in = 500,
+                  use_genetics = FALSE)
+
+score_nogen <- ancestry_score(
+  outbreak$ObsRec$Anc2,
+  fit_nogen$anc,
+  outbreak$ObsRec$Adm,
+  outbreak$ObsRec$PTest
+)
+```
+
+```{r}
+#| label: tbl-compare
+#| tbl-cap: "Reconstruction accuracy with and without genomic data."
+data.frame(
+  Metric  = c("Mode accuracy", "Mean $P$(true ancestor)",
+              "Mean lift", "Log skill"),
+  With    = round(c(score$mode_accuracy,       score$mean_p_true,
+                    mean(score$lift),           score$log_skill), 3),
+  Without = round(c(score_nogen$mode_accuracy, score_nogen$mean_p_true,
+                    mean(score_nogen$lift),     score_nogen$log_skill), 3)
+) |>
+  kable(booktabs = TRUE, escape = FALSE,
+        col.names = c("Metric", "With genomics", "Without genomics"),
+        align = c("l", "r", "r"))
+```
+
+```{r}
+#| label: fig-nogen
+#| fig-cap: "Posterior-mode reconstruction without genomic data. Compare with @fig-reconstruction: additional errors appear in cases where multiple plausible ancestor--descendant pairs coexist in the same room."
+#| fig-pos: H
+#| out-width: "100%"
+if (knitr::is_html_output()) {
+  plot_timeline_mode(outbreak, fit_nogen, color_edges = TRUE, color_nodes = FALSE)
+} else {
+  p_nogen <- plot_timeline_mode(outbreak, fit_nogen, color_edges = TRUE, color_nodes = FALSE)
+  save_timeline(p_nogen, file.path(fig_dir, "reconstruction-nogen.png"), width = 1400)
+  knitr::include_graphics(file.path(fig_dir, "reconstruction-nogen.png"))
+}
+```
+
+Genomic distances contribute most where several infectious individuals overlap in the same room: the SNP count then disambiguates who infected whom beyond what temporal and spatial constraints alone can resolve.
+
+------------------------------------------------------------------------
+
+## Summary
+
+```{r}
+#| label: tbl-summary
+#| tbl-cap: "Summary of simulation and inference experiment."
+data.frame(
+  Parameter = c(
+    "Hospital layout",
+    "Simulation duration",
+    "$\\mathcal{R}_0$",
+    "$\\beta_{\\text{room}}$ / $\\beta_{\\text{ward}}$ / $\\beta_{\\text{hosp}}$",
+    "$\\mu$ (mutations per transmission)",
+    "Daily testing probability",
+    "Daily discharge probability",
+    "Total simulated cases",
+    "Observed cases",
+    "MCMC samples (post burn-in)",
+    "Burn-in",
+    "Mode accuracy --- with genomics",
+    "Mode accuracy --- without genomics"
+  ),
+  Value = c(
+    sprintf("%d wards, %d rooms, %d beds",
+            length(unique(Positions$Ward)), NumRooms, NumBeds),
+    "45 days",
+    sprintf("%.2f", R0_val),
+    sprintf("%.3f / %.4f / %.5f",
+            theta$beta["BrB"], theta$beta["BwB"], theta$beta["BhB"]),
+    as.character(theta$mu),
+    sprintf("%.0f%%", theta$P$Test[[1]] * 100),
+    sprintf("%.0f%%", theta$P$Dis[[1]]  * 100),
+    as.character(nrow(outbreak$CaseRec)),
+    as.character(nrow(outbreak$ObsRec)),
+    "3 000",
+    "500",
+    sprintf("%.3f", score$mode_accuracy),
+    sprintf("%.3f", score_nogen$mode_accuracy)
+  )
+) |>
+  kable(booktabs = TRUE, escape = FALSE,
+        col.names = c("Parameter", "Value"),
+        align = c("l", "l"))
+```

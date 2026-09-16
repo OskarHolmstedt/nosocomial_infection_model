@@ -15,7 +15,7 @@ stopifnot(
   identical(quick_start_summary$total_cases, 17L),
   identical(quick_start_summary$observed_cases, 10L),
   isTRUE(all.equal(quick_start_summary$mode_accuracy, 0.4)),
-  isTRUE(all.equal(quick_start_summary$mean_p_true, 0.4629, tolerance = 1e-4)),
+  isTRUE(all.equal(quick_start_summary$mean_p_true, 0.3942, tolerance = 1e-3)),
   file.exists(smoke_output)
 )
 

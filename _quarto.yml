@@ -1,0 +1,16 @@
+project:
+  type: default
+  output-dir: output
+  render:
+    - use-cases.qmd
+    - use-cases-pdf.qmd
+
+# ── Shared document metadata ───────────────────────────────────────────────
+author: "Oskar Holmstedt"
+date: today
+date-format: "D MMMM YYYY"
+
+# ── Execution defaults (format-specific echo overrides these per document) ─
+execute:
+  warning: false
+  message: false

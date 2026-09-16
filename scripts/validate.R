@@ -27,6 +27,12 @@ sys.source(
   envir = smoke_environment
 )
 
+room_smoke_environment <- new.env(parent = globalenv())
+sys.source(
+  here::here("tests", "smoke-room-aware.R"),
+  envir = room_smoke_environment
+)
+
 skip_reports <- identical(
   tolower(Sys.getenv("NOSOCOMIAL_SKIP_REPORT_CHECKS", "false")),
   "true"

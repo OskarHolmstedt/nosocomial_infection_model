@@ -54,6 +54,60 @@ outbreak_prevalence <- function(OutbreakData) {
   )
 }
 
+# Build room-aware ground-truth ancestry for scoring
+# mcmc(inference_mode = "patients_and_rooms") reconstructions, in the same
+# combined node ordering the MCMC trace uses (ObsRec rows, then room_source
+# rows — see mcmc_setup_rooms()). Unlike outbreak$ObsRec$Anc2 (which always
+# skips rooms), this lets the true ancestor be a room, matching what the
+# room-aware MCMC's own ancestor field can point to.
+# use_room_tests must match the setting the MCMC was actually run with
+# (selects outbreak$*$Anc3 vs. outbreak$*$Anc3_all as the source truth — see
+# sim_postprocess() in simulation.R).
+#
+# Returns a named list with three parallel vectors, all aligned one-to-one
+# with the columns of fit$anc from mcmc(inference_mode = "patients_and_rooms"):
+#   $true_anc   — integer vector of true ancestor indices (NA = community import)
+#   $adm_times  — lower bound on each node's infection/contamination time,
+#                 using the *observable* Adm column (previous cleaning for rooms,
+#                 admission day for patients). Do NOT substitute CaseRoomRec$Infc
+#                 here: that is the latent ground-truth contamination time, which
+#                 the MCMC does not observe and which would narrow the eligible-
+#                 ancestor set relative to what the sampler actually saw.
+#   $ptest_times — upper bound (positive-test day for patients/rooms with a swab,
+#                  cleaning day for rooms without one — matching harmonise_room_rows).
+#
+# Pass $true_anc, $adm_times, $ptest_times directly to ancestry_score().
+build_room_aware_truth <- function(outbreak, use_room_tests = TRUE) {
+  CaseRec     <- outbreak$CaseRec
+  CaseRoomRec <- outbreak$CaseRoomRec
+  ObsRec      <- outbreak$ObsRec
+  room_source <- if (use_room_tests) outbreak$ObsRoomRec else CaseRoomRec
+  anc_col     <- if (use_room_tests) "Anc3" else "Anc3_all"
+
+  n_pat_obs   <- nrow(ObsRec)
+  n_room_case <- nrow(CaseRoomRec)
+
+  # Position of each CaseRec/CaseRoomRec row within the *actual* combined MCMC
+  # ordering (NA if that case is not part of the observed/used set).
+  pat_pos      <- match(CaseRec$Id, ObsRec$Id)
+  room_pos     <- if (use_room_tests) match(CaseRoomRec$Id, room_source$Id) else seq_len(n_room_case)
+  combined_pos <- c(pat_pos, n_pat_obs + room_pos)
+
+  # Raw truth (CaseRec/CaseRoomRec position space) for each row actually used
+  # by the MCMC, in its own (ObsRec ++ room_source) order.
+  raw_truth <- c(ObsRec[[anc_col]], room_source[[anc_col]])
+  true_anc  <- combined_pos[raw_truth]
+
+  # adm_times: use the observable Adm column (= previous cleaning time for rooms,
+  # admission day for patients) — NOT CaseRoomRec$Infc (latent contamination time).
+  # Using Adm makes the eligible-ancestor count consistent with what the MCMC saw.
+  room_ptest <- ifelse(!is.na(room_source$PTest), room_source$PTest, room_source$Clean)
+  adm_times  <- c(ObsRec$Adm,   room_source$Adm)
+  ptest_times <- c(ObsRec$PTest, room_ptest)
+
+  list(true_anc = true_anc, adm_times = adm_times, ptest_times = ptest_times)
+}
+
 # Plot simulated prevalence over time against the SIS endemic equilibrium.
 plot_prevalence <- function(res) {
   library(ggplot2)

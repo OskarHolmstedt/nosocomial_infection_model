@@ -250,3 +250,251 @@ test_that("uplift_ancestry: Anc2, Mut2, and Gen columns are added to output", {
   result <- uplift_ancestry(Cases)
   expect_true(all(c("Anc2", "Mut2", "Gen") %in% names(result)))
 })
+
+# ── create_room_record ────────────────────────────────────────────────────────
+
+make_room_positions <- function(num_beds, num_rooms) {
+  all_names <- c(as.character(seq_len(num_beds)),
+                 paste0("r", seq_len(num_rooms)))
+  data.frame(
+    Room = c(paste0("R", rep(seq_len(num_rooms), each = num_beds %/% num_rooms)),
+             paste0("R", seq_len(num_rooms))),
+    Ward = rep("W1", num_beds + num_rooms),
+    row.names = all_names,
+    stringsAsFactors = FALSE
+  )
+}
+
+test_that("create_room_record: output has correct columns including Adm", {
+  Positions <- make_room_positions(4, 2)
+  State     <- matrix(0, nrow = 6, ncol = 6)
+  RoomId    <- c("r1_ep1", "r2_ep1")
+  Rec       <- create_room_record(Positions, State, RoomId, 4, 2, 5)
+  expect_named(Rec, c("Id","Room","Ward","Adm","Infc","Clean","NTest","PTest","Anc"))
+})
+
+test_that("create_room_record: initial episodes have Adm = 0", {
+  Positions <- make_room_positions(4, 2)
+  State     <- matrix(0, nrow = 6, ncol = 6)
+  RoomId    <- c("r1_ep1", "r2_ep1")
+  Rec       <- create_room_record(Positions, State, RoomId, 4, 2, 5)
+  expect_equal(Rec["r1_ep1", "Adm"], 0L)
+  expect_equal(Rec["r2_ep1", "Adm"], 0L)
+})
+
+test_that("create_room_record: initial episode rows have Id/Room/Ward set", {
+  Positions <- make_room_positions(4, 2)
+  State     <- matrix(0, nrow = 6, ncol = 6)
+  RoomId    <- c("r1_ep1", "r2_ep1")
+  Rec       <- create_room_record(Positions, State, RoomId, 4, 2, 5)
+  expect_equal(Rec["r1_ep1", "Id"],   "r1_ep1")
+  expect_equal(Rec["r1_ep1", "Room"], "R1")
+  expect_equal(Rec["r2_ep1", "Room"], "R2")
+})
+
+test_that("create_room_record: initially contaminated rooms get Infc=0 and Anc='0'", {
+  Positions <- make_room_positions(4, 2)
+  State     <- matrix(0, nrow = 6, ncol = 6)
+  State[5, 1] <- 1  # room index 1 (global row 5 = NumBeds + 1)
+  RoomId    <- c("r1_ep1", "r2_ep1")
+  Rec       <- create_room_record(Positions, State, RoomId, 4, 2, 5)
+  expect_equal(Rec["r1_ep1", "Infc"], 0L)
+  expect_equal(Rec["r1_ep1", "Anc"],  "0")
+  expect_true(is.na(Rec["r2_ep1", "Infc"]))
+})
+
+# ── uplift_ancestry with room intermediaries ──────────────────────────────────
+
+make_room_cases <- function(ids, ancs, infc_times, ptests) {
+  data.frame(
+    Id    = ids,
+    Room  = rep("R1", length(ids)),
+    Ward  = rep("W1", length(ids)),
+    Infc  = infc_times,
+    Clean = NA_integer_,
+    NTest = NA_integer_,
+    PTest = ptests,
+    Anc   = ancs,
+    stringsAsFactors = FALSE,
+    row.names = ids
+  )
+}
+
+test_that("uplift_ancestry: unobserved room intermediary is skipped", {
+  # Chain: patient 1 (tested) -> room r1_ep1 (not tested) -> patient 2 (tested)
+  cases <- make_cases(c("1","2"), c("0","r1_ep1"), c(0L, 2L),
+                      c(1L, 3L), c(1L, 2L))
+  room  <- make_room_cases("r1_ep1", "1", 1L, NA_integer_)
+  result <- uplift_ancestry(cases, room_cases = room)
+  # Patient 2's Anc2 should skip the room and point to patient 1
+  expect_equal(result[result$Id == "2", "Anc2"], "1")
+  expect_equal(result[result$Id == "2", "Gen"],  2L)
+})
+
+test_that("uplift_ancestry: row count unchanged when room_cases supplied", {
+  cases  <- make_cases(c("1","2"), c("0","r1_ep1"), c(0L, 2L),
+                       c(1L, 3L), c(1L, 2L))
+  room   <- make_room_cases("r1_ep1", "1", 1L, NA_integer_)
+  result <- uplift_ancestry(cases, room_cases = room)
+  expect_equal(nrow(result), 2L)
+})
+
+test_that("uplift_ancestry: NULL room_cases reproduces original behaviour", {
+  cases  <- make_cases(c("1","2","3"), c("0","1","2"),
+                       c(0L, 1L, 2L), c(1L, NA, 3L), c(1L, 2L, 3L))
+  expect_equal(uplift_ancestry(cases, room_cases = NULL),
+               uplift_ancestry(cases))
+})
+
+# ── node_is_room ──────────────────────────────────────────────────────────────
+
+test_that("node_is_room: FALSE for all rows when node_type column absent", {
+  Rec <- data.frame(Id = c("1","2"), Room = c("R1","R1"), Ward = c("W1","W1"))
+  expect_equal(node_is_room(Rec), c(FALSE, FALSE))
+})
+
+test_that("node_is_room: correctly identifies room rows", {
+  Rec <- data.frame(
+    Id        = c("1","2","3"),
+    node_type = c(NA_character_, "room", NA_character_),
+    stringsAsFactors = FALSE
+  )
+  expect_equal(node_is_room(Rec), c(FALSE, TRUE, FALSE))
+})
+
+# ── beta_for_s ────────────────────────────────────────────────────────────────
+# S-codes 4 and 5 use crossed beta indices:
+#   4 = patient <- room  → should return beta[5] = RB (room-to-bed rate)
+#   5 = room <- patient  → should return beta[4] = BR (bed-to-room rate)
+# The direct index s → beta[s] swap was the original bug.
+
+test_that("beta_for_s: S=0 returns 0 (no spatial link)", {
+  beta <- c(0.08, 0.005, 0.0005, 0.10, 0.15, 0.02)
+  expect_equal(beta_for_s(0L, beta), 0)
+})
+
+test_that("beta_for_s: S=1,2,3 map to BrB, BwB, BhB directly", {
+  beta <- c(0.08, 0.005, 0.0005, 0.10, 0.15, 0.02)
+  expect_equal(beta_for_s(1L, beta), 0.08)
+  expect_equal(beta_for_s(2L, beta), 0.005)
+  expect_equal(beta_for_s(3L, beta), 0.0005)
+})
+
+test_that("beta_for_s: S=4 (patient<-room) returns RB = beta[5], not BR = beta[4]", {
+  beta <- c(0.08, 0.005, 0.0005, 0.10, 0.15, 0.02)  # BR=0.10, RB=0.15
+  expect_equal(beta_for_s(4L, beta), 0.15)  # RB
+  expect_false(isTRUE(all.equal(beta_for_s(4L, beta), 0.10)))  # not BR
+})
+
+test_that("beta_for_s: S=5 (room<-patient) returns BR = beta[4], not RB = beta[5]", {
+  beta <- c(0.08, 0.005, 0.0005, 0.10, 0.15, 0.02)
+  expect_equal(beta_for_s(5L, beta), 0.10)  # BR
+  expect_false(isTRUE(all.equal(beta_for_s(5L, beta), 0.15)))  # not RB
+})
+
+test_that("beta_for_s: S=6 (room<-room) returns RR = beta[6]", {
+  beta <- c(0.08, 0.005, 0.0005, 0.10, 0.15, 0.02)
+  expect_equal(beta_for_s(6L, beta), 0.02)
+})
+
+test_that("beta_for_s: vectorised over mixed S codes", {
+  beta <- c(0.08, 0.005, 0.0005, 0.10, 0.15, 0.02)
+  result <- beta_for_s(c(0L, 1L, 4L, 5L), beta)
+  expect_equal(result, c(0, 0.08, 0.15, 0.10))
+})
+
+# ── harmonise_room_rows ───────────────────────────────────────────────────────
+
+make_room_source <- function(adm, infc, clean, ptest = NA_integer_) {
+  data.frame(
+    Room  = "R1",
+    Ward  = "W1",
+    Adm   = adm,
+    Infc  = infc,
+    Clean = clean,
+    NTest = NA_integer_,
+    PTest = ptest,
+    stringsAsFactors = FALSE
+  )
+}
+
+test_that("harmonise_room_rows: Adm comes from room_rec$Adm, not $Infc", {
+  rs  <- make_room_source(adm = 3L, infc = 7L, clean = 20L)
+  out <- harmonise_room_rows(rs, n_pat_rows = 5L)
+  expect_equal(out$Adm,  3L)   # previous cleaning time
+  expect_false(out$Adm == 7L)  # must NOT be Infc
+})
+
+test_that("harmonise_room_rows: Infc is NA (latent, not passed to MCMC)", {
+  rs  <- make_room_source(adm = 3L, infc = 7L, clean = 20L)
+  out <- harmonise_room_rows(rs, n_pat_rows = 5L)
+  expect_true(is.na(out$Infc))
+})
+
+test_that("harmonise_room_rows: Dis equals Clean", {
+  rs  <- make_room_source(adm = 0L, infc = 5L, clean = 15L)
+  out <- harmonise_room_rows(rs, n_pat_rows = 0L)
+  expect_equal(out$Dis, 15L)
+})
+
+test_that("harmonise_room_rows: PTest used when swab present, else Clean", {
+  rs_swab    <- make_room_source(adm = 0L, infc = 2L, clean = 10L, ptest = 6L)
+  rs_no_swab <- make_room_source(adm = 0L, infc = 2L, clean = 10L)
+  expect_equal(harmonise_room_rows(rs_swab,    0L)$PTest, 6L)
+  expect_equal(harmonise_room_rows(rs_no_swab, 0L)$PTest, 10L)
+  expect_true( harmonise_room_rows(rs_swab,    0L)$has_ptest)
+  expect_false(harmonise_room_rows(rs_no_swab, 0L)$has_ptest)
+})
+
+# ── build_room_aware_truth ────────────────────────────────────────────────────
+
+test_that("build_room_aware_truth: returns a named list with three fields", {
+  source(here::here("R", "analysis.R"))
+  source(here::here("R", "hospital.R"))
+  source(here::here("config", "hospital_two_wards.R"))
+  source(here::here("config", "parameters.R"))
+
+  theta_room <- local({
+    th <- theta; th$beta["BR"] <- 0.10; th$beta["RB"] <- 0.15
+    th$use_room_transmission <- TRUE
+    W <- weights(th$beta, Contact)
+    th$LogComp <- log1p(-W); th$Odds <- W / (1 - W); th
+  })
+  th_sim <- local({
+    th <- theta_room
+    th$P$Init <- c(rep(1, 3), rep(0, NumBeds - 3), rep(0, NumRooms)); th
+  })
+  set.seed(37675)
+  ob <- simulate_outbreak(45, th_sim)
+
+  truth <- build_room_aware_truth(ob, use_room_tests = FALSE)
+  expect_type(truth, "list")
+  expect_named(truth, c("true_anc", "adm_times", "ptest_times"))
+})
+
+test_that("build_room_aware_truth: adm_times for rooms equals CaseRoomRec$Adm", {
+  source(here::here("R", "analysis.R"))
+  source(here::here("R", "hospital.R"))
+  source(here::here("config", "hospital_two_wards.R"))
+  source(here::here("config", "parameters.R"))
+
+  theta_room <- local({
+    th <- theta; th$beta["BR"] <- 0.10; th$beta["RB"] <- 0.15
+    th$use_room_transmission <- TRUE
+    W <- weights(th$beta, Contact)
+    th$LogComp <- log1p(-W); th$Odds <- W / (1 - W); th
+  })
+  th_sim <- local({
+    th <- theta_room
+    th$P$Init <- c(rep(1, 3), rep(0, NumBeds - 3), rep(0, NumRooms)); th
+  })
+  set.seed(37675)
+  ob <- simulate_outbreak(45, th_sim)
+
+  truth    <- build_room_aware_truth(ob, use_room_tests = FALSE)
+  n_pat    <- nrow(ob$ObsRec)
+  room_adm <- truth$adm_times[(n_pat + 1):length(truth$adm_times)]
+
+  expect_equal(room_adm, ob$CaseRoomRec$Adm)
+  expect_true(all(room_adm <= ob$CaseRoomRec$Infc, na.rm = TRUE))
+})
